@@ -10,6 +10,11 @@ public static unsafe class Gui
 {
     static readonly Vector2 UV = ImGui.GetFontTexUvWhitePixel();
 
+    public static string GetImagePath(string name)
+    {
+        return Path.Combine(Svc.PluginInterface.AssemblyLocation.DirectoryName, "res", $"{name}.png");
+    }
+
     public enum LineClipStatus
     {
         NotVisible,
@@ -94,6 +99,8 @@ public static unsafe class Gui
             bool[] cull = new bool[count];
 
             ImDrawListPtr drawList = ImGui.GetWindowDrawList();
+            //ThreadLoadImageHandler.TryGetTextureWrap(GetImagePath("arrow_forward"), out var texture);
+            //if (texture != null) drawList.PushTextureID(texture.ImGuiHandle);
             uint vtxBase = drawList._VtxCurrentIdx;
 
             Vector2[] originScreenPositions = new Vector2[count];
@@ -131,6 +138,11 @@ public static unsafe class Gui
                 }
                 else
                 {
+                    Vector2 uv = new(0, 0);
+                    if (i%2 == 1)
+                    {
+                        uv = new(1, 0);
+                    }
                     var endScreenPos = WorldToScreen(viewProj, segment.end);
                     endScreenPositions[i] = endScreenPos;
                     drawList.PrimReserve(0, 1);
@@ -145,6 +157,11 @@ public static unsafe class Gui
                 }
                 else
                 {
+                    Vector2 uv = new(0, 3);
+                    if (i % 2 == 1)
+                    {
+                        uv = new(1, 3);
+                    }
                     var originScreenPos = WorldToScreen(viewProj, segment.origin);
                     originScreenPositions[i] = originScreenPos;
                     drawList.PrimReserve(0, 1);
@@ -246,6 +263,7 @@ public static unsafe class Gui
                 }
                 drawList.PathStroke(style.strokeColor, ImDrawFlags.None, style.strokeThickness);
             }
+            //if (texture != null) drawList.PopTextureID();
         }
     }
 }
