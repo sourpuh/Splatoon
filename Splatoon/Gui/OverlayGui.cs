@@ -75,8 +75,20 @@ unsafe class OverlayGui : IDisposable
                     //renderer.DrawCircle(XZY(elementFan.origin), elementFan.outerRadius, 0, 2 * MathF.PI, elementFan.style.strokeColor.ToVector4());
                     //renderer.DebugShape(XZY(elementFan.origin), elementFan.style.strokeColor.ToVector4());
                 }
+                if (element is DisplayObjectLine elementLine)
+                {
+                    renderer.DrawLine(elementLine.start, elementLine.stop - elementLine.start, elementLine.radius, elementLine.style.originFillColor.ToVector4(), elementLine.style.endFillColor.ToVector4());
+                }
             }
             renderer.EndFrame();
+
+            foreach (var element in p.displayObjects)
+            {
+                if (element is DisplayObjectText elementText)
+                {
+                    DrawTextWorld(elementText);
+                }
+            }
         }
         catch (Exception e)
         {

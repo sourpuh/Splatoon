@@ -141,7 +141,6 @@ public unsafe class DynamicMesh : IDisposable
                 float3 viewPos = mul(float4(wx, wy, wz, 1.0), k.view).xyz;
                 res.projPos = mul(float4(viewPos, 1), k.proj);
                 res.color = v.color;
-                // res.color = float4(0.5, 1.0, 1.0, 0.5);
                 return res;
             }
 

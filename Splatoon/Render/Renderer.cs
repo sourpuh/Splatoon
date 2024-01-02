@@ -99,6 +99,13 @@ public unsafe class Renderer : IDisposable
         _meshBuilder?.Add(circle, ref world, originColor, endColor);
     }
 
+    public void DrawLine(Vector3 origin, Vector3 direction, float radius, Vector4 originColor, Vector4 endColor)
+    {
+        Matrix4x4 world = Matrix4x4.CreateTranslation(origin);
+        Line mesh = new(direction, radius);
+        _meshBuilder?.Add(mesh, ref world, originColor, endColor);
+    }
+
     public void DebugShape(Vector3 origin, Vector4 color)
     {
         Matrix4x4 world = Matrix4x4.CreateTranslation(origin); // * Matrix4x4.CreateScale(outerRadius);
