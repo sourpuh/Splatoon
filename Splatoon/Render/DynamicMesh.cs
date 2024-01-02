@@ -54,14 +54,12 @@ public unsafe class DynamicMesh : IDisposable
             _instances.Stream.Write(new System.Numerics.Vector4(world.M11, world.M21, world.M31, world.M41));
             _instances.Stream.Write(new System.Numerics.Vector4(world.M12, world.M22, world.M32, world.M42));
             _instances.Stream.Write(new System.Numerics.Vector4(world.M13, world.M23, world.M33, world.M43));
-            _instances.Stream.Write(color);
 
             _vertices.Advance(nv);
             for (int i = 0; i < nv; ++i)
             {
                 _vertices.Stream.Write(mesh.Vertex(i));
-
-                /*
+                
                 if (i % 2 == 0)
                 {
                     _vertices.Stream.Write(color);
@@ -70,7 +68,6 @@ public unsafe class DynamicMesh : IDisposable
                 {
                     _vertices.Stream.Write(color2);
                 }
-                */
             }
 
             _primitives.Advance(nt);
@@ -95,7 +92,6 @@ public unsafe class DynamicMesh : IDisposable
     private SharpDX.Direct3D11.Buffer _constantBuffer;
     private InputLayout _il;
     private VertexShader _vs;
-    private GeometryShader _gs;
     private PixelShader _ps;
     private RasterizerState _rsWireframe;
     private List<Mesh> _meshes = new();
@@ -112,6 +108,13 @@ public unsafe class DynamicMesh : IDisposable
             struct Vertex
             {
                 float3 pos : POSITION;
+                float4 color : COLOR;
+            };
+
+            struct VSOutput
+            {
+                float4 projPos : SV_POSITION;
+                float4 color : COLOR;
             };
 
             struct Instance
@@ -119,19 +122,6 @@ public unsafe class DynamicMesh : IDisposable
                 float4 worldColX : WORLD0;
                 float4 worldColY : WORLD1;
                 float4 worldColZ : WORLD2;
-                float4 color : COLOR;
-            };
-
-            struct VSOutput
-            {
-                float3 viewPos : Position;
-                float4 color : COLOR;
-            };
-
-            struct GSOutput
-            {
-                float4 projPos : SV_Position;
-                float4 color : COLOR;
             };
 
             struct Constants
@@ -148,32 +138,14 @@ public unsafe class DynamicMesh : IDisposable
                 float wx = dot(lp, i.worldColX);
                 float wy = dot(lp, i.worldColY);
                 float wz = dot(lp, i.worldColZ);
-                res.viewPos = mul(float4(wx, wy, wz, 1.0), k.view).xyz;
-                res.color = i.color;
+                float3 viewPos = mul(float4(wx, wy, wz, 1.0), k.view).xyz;
+                res.projPos = mul(float4(viewPos, 1), k.proj);
+                res.color = v.color;
+                // res.color = float4(0.5, 1.0, 1.0, 0.5);
                 return res;
             }
 
-            [maxvertexcount(3)]
-            void gs(triangle VSOutput input[3], inout TriangleStream<GSOutput> output)
-            {
-                float3 a = input[0].viewPos;
-                float3 b = input[1].viewPos;
-                float3 c = input[2].viewPos;
-
-                GSOutput v;
-                v.color = input[0].color;
-
-                v.projPos = mul(float4(a, 1), k.proj);
-                output.Append(v);
-                v.projPos = mul(float4(b, 1), k.proj);
-                output.Append(v);
-                v.projPos = mul(float4(c, 1), k.proj);
-                output.Append(v);
-
-                output.RestartStrip();
-            }
-
-            float4 ps(GSOutput input) : SV_Target
+            float4 ps(VSOutput input) : SV_Target
             {
                 return input.color;
             }
@@ -182,26 +154,22 @@ public unsafe class DynamicMesh : IDisposable
         Svc.Log.Debug($"VS compile: {vs.Message}");
         _vs = new(_device, vs.Bytecode);
 
-        var gs = ShaderBytecode.Compile(shader, "gs", "gs_5_0");
-        Svc.Log.Debug($"GS compile: {gs.Message}");
-        _gs = new(_device, gs.Bytecode);
-
         var ps = ShaderBytecode.Compile(shader, "ps", "ps_5_0");
         Svc.Log.Debug($"PS compile: {ps.Message}");
         _ps = new(_device, ps.Bytecode);
 
-        _vertexBuffer = new(_device, 3 * 4, maxVertices, BindFlags.VertexBuffer);
+        _vertexBuffer = new(_device, 3 * 4 + 16, maxVertices, BindFlags.VertexBuffer);
         _primBuffer = new(_device, 4 * 3, maxPrimitives, BindFlags.IndexBuffer);
-        _instanceBuffer = new(_device, 16 * 4, maxVertices, BindFlags.VertexBuffer);
+        _instanceBuffer = new(_device, 16 * 3, maxVertices, BindFlags.VertexBuffer);
         _constantBuffer = new(_device, 16 * 4 * 2, ResourceUsage.Default, BindFlags.ConstantBuffer, CpuAccessFlags.None, ResourceOptionFlags.None, 0);
 
         _il = new(_device, vs.Bytecode,
             [
-                new InputElement("POSITION", 0, Format.R32G32B32_Float, 0),
+                new InputElement("POSITION", 0, Format.R32G32B32_Float, -1, 0, InputClassification.PerVertexData, 0),
+                new InputElement("COLOR", 0, Format.R32G32B32A32_Float, -1, 0, InputClassification.PerVertexData, 0),
                 new InputElement("WORLD", 0, Format.R32G32B32A32_Float, -1, 1, InputClassification.PerInstanceData, 1),
                 new InputElement("WORLD", 1, Format.R32G32B32A32_Float, -1, 1, InputClassification.PerInstanceData, 1),
                 new InputElement("WORLD", 2, Format.R32G32B32A32_Float, -1, 1, InputClassification.PerInstanceData, 1),
-                new InputElement("COLOR", 0, Format.R32G32B32A32_Float, -1, 1, InputClassification.PerInstanceData, 1),
             ]);
 
         var rsDesc = RasterizerStateDescription.Default();
@@ -217,7 +185,6 @@ public unsafe class DynamicMesh : IDisposable
         _constantBuffer.Dispose();
         _il.Dispose();
         _vs.Dispose();
-        _gs.Dispose();
         _ps.Dispose();
         _rsWireframe.Dispose();
     }
@@ -238,8 +205,6 @@ public unsafe class DynamicMesh : IDisposable
         ctx.InputAssembler.SetIndexBuffer(_primBuffer.Buffer, Format.R32_UInt, 0);
         ctx.VertexShader.Set(_vs);
         ctx.VertexShader.SetConstantBuffer(0, _constantBuffer);
-        ctx.GeometryShader.Set(_gs);
-        ctx.GeometryShader.SetConstantBuffer(0, _constantBuffer);
         if (wireframe)
             ctx.Rasterizer.State = _rsWireframe;
         ctx.PixelShader.Set(_ps);
