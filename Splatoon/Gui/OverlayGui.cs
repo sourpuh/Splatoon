@@ -1,6 +1,8 @@
 ﻿using Dalamud.Game.ClientState.Conditions;
 using ImGuiNET;
+using ImGuiScene;
 using Splatoon.Structures;
+using Splatoon.Render;
 using System.Runtime.InteropServices;
 
 
@@ -21,11 +23,13 @@ unsafe class OverlayGui : IDisposable
     public Matrix4x4 ViewProj { get; private set; }
     public Vector2 ViewportSize { get; private set; }
 
+    Renderer renderer;
     readonly Splatoon p;
     int uid = 0;
     public OverlayGui(Splatoon p)
     {
         this.p = p;
+        renderer = new Renderer();
         Svc.PluginInterface.UiBuilder.Draw += Draw;
         // https://github.com/goatcorp/Dalamud/blob/d52118b3ad366a61216129c80c0fa250c885abac/Dalamud/Game/Gui/GameGuiAddressResolver.cs#L69
         var funcAddress = Svc.SigScanner.ScanText("E8 ?? ?? ?? ?? 48 8D 4C 24 ?? 48 89 4c 24 ?? 4C 8D 4D ?? 4C 8D 44 24 ??");
@@ -61,78 +65,18 @@ unsafe class OverlayGui : IDisposable
             {
                 return;
             }
-            uid = 0;
-            var matrixSingleton = _getMatrixSingleton();
-            ViewProj = ReadMatrix(matrixSingleton + 0x1b4);
-            ViewportSize = ReadVec2(matrixSingleton + 0x1f4);
-            try
+            renderer.BeginFrame();
+            foreach (var element in p.displayObjects)
             {
-                void Draw()
+                if (element is DisplayObjectFan elementFan)
                 {
-                    foreach (var element in p.displayObjects)
-                    {
-                        if (element is DisplayObjectFan elementFan)
-                        {
-                            DrawTriangleFanWorld(elementFan);
-                        }
-                    }
-                    // Draw lines and dots second because they're hard to see when covered by another shape.
-                    foreach (var element in p.displayObjects)
-                    {
-                        if (element is DisplayObjectLine elementLine)
-                        {
-                            DrawLineWorld(elementLine);
-                        }
-                        else if (element is DisplayObjectDot elementDot)
-                        {
-                            DrawPoint(elementDot);
-                        }
-                    }
-                    // Draw text last because it's most critical top be legible.
-                    foreach (var element in p.displayObjects)
-                    {
-                        if (element is DisplayObjectText elementText)
-                        {
-                            DrawTextWorld(elementText);
-                        }
-                    }
-                }
+                    renderer.DrawDonut(XZY(elementFan.origin), elementFan.innerRadius, elementFan.outerRadius, elementFan.angleMin, elementFan.angleMax, elementFan.style.originFillColor.ToVector4(), elementFan.style.endFillColor.ToVector4());
 
-                ImGuiHelpers.ForceNextWindowMainViewport();
-                ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, Vector2.Zero);
-                ImGuiHelpers.SetNextWindowPosRelativeMainViewport(Vector2.Zero);
-                ImGui.SetNextWindowSize(ImGuiHelpers.MainViewport.Size);
-                ImGui.Begin("Splatoon scene", ImGuiWindowFlags.NoInputs | ImGuiWindowFlags.NoNav | ImGuiWindowFlags.NoTitleBar
-                    | ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoBackground | ImGuiWindowFlags.AlwaysUseWindowPadding);
-                if (P.Config.SplatoonLowerZ)
-                {
-                    CImGui.igBringWindowToDisplayBack(CImGui.igGetCurrentWindow());
+                    //renderer.DrawCircle(XZY(elementFan.origin), elementFan.outerRadius, 0, 2 * MathF.PI, elementFan.style.strokeColor.ToVector4());
+                    //renderer.DebugShape(XZY(elementFan.origin), elementFan.style.strokeColor.ToVector4());
                 }
-                if (P.Config.RenderableZones.Count == 0 || !P.Config.RenderableZonesValid)
-                {
-                    Draw();
-                }
-                else
-                {
-                    foreach (var e in P.Config.RenderableZones)
-                    {
-                        //var trans = e.Trans != 1.0f;
-                        //if (trans) ImGui.PushStyleVar(ImGuiStyleVar.Alpha, e.Trans);
-                        ImGui.PushClipRect(new Vector2(e.Rect.X, e.Rect.Y), new Vector2(e.Rect.Right, e.Rect.Bottom), false);
-                        Draw();
-                        ImGui.PopClipRect();
-                        //if(trans)ImGui.PopStyleVar();
-                    }
-                }
-                ImGui.End();
-                ImGui.PopStyleVar();
             }
-            catch (Exception e)
-            {
-                p.Log("Splatoon exception: please report it to developer", true);
-                p.Log(e.Message, true);
-                p.Log(e.StackTrace, true);
-            }
+            renderer.EndFrame();
         }
         catch (Exception e)
         {
