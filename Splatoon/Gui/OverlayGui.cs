@@ -46,7 +46,7 @@ unsafe class OverlayGui : IDisposable
     public static int RadialSegments(float radius, float angleRadians = MathF.PI * 2)
     {
         float angularPercent = angleRadians / (MathF.PI * 2);
-        int segments = (int) (RADIAL_SEGMENTS_PER_RADIUS_UNIT * radius * angularPercent);
+        int segments = (int)(RADIAL_SEGMENTS_PER_RADIUS_UNIT * radius * angularPercent);
         int minimumSegments = Math.Max((int)(MINIMUM_CIRCLE_SEGMENTS * angularPercent), 1);
         int maximumSegments = Math.Max((int)(MAXIMUM_CIRCLE_SEGMENTS * angularPercent), 1);
         return Math.Clamp(segments, minimumSegments, maximumSegments);
@@ -65,6 +65,8 @@ unsafe class OverlayGui : IDisposable
             {
                 return;
             }
+
+            // Fill shapes
             renderer.BeginFrame();
             foreach (var element in p.displayObjects)
             {
@@ -82,26 +84,65 @@ unsafe class OverlayGui : IDisposable
             }
             renderer.EndFrame();
 
-            /*
-            foreach (var element in p.displayObjects)
+            uid = 0;
+            var matrixSingleton = _getMatrixSingleton();
+            ViewProj = ReadMatrix(matrixSingleton + 0x1b4);
+            ViewportSize = ReadVec2(matrixSingleton + 0x1f4);
+            try
             {
-                if (element is DisplayObjectFan elementFan)
+                void Draw()
                 {
-                    DrawTriangleFanWorld(elementFan);
-                }
-                if (element is DisplayObjectLine elementLine)
-                {
-                    DrawLineWorld(elementLine);
-                }
-            }
-            */
+                    foreach (var element in p.displayObjects)
+                    {
+                        if (element is DisplayObjectFan elementFan)
+                        {
+                            DrawTriangleFanWorld(elementFan);
+                        }
+                        if (element is DisplayObjectLine elementLine)
+                        {
+                            DrawLineWorld(elementLine);
+                        }
+                    }
 
-            foreach (var element in p.displayObjects)
-            {
-                if (element is DisplayObjectText elementText)
-                {
-                    DrawTextWorld(elementText);
+                    foreach (var element in p.displayObjects)
+                    {
+                        if (element is DisplayObjectText elementText)
+                        {
+                            DrawTextWorld(elementText);
+                        }
+                    }
                 }
+                ImGuiHelpers.ForceNextWindowMainViewport();
+                ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, Vector2.Zero);
+                ImGuiHelpers.SetNextWindowPosRelativeMainViewport(Vector2.Zero);
+                ImGui.SetNextWindowSize(ImGuiHelpers.MainViewport.Size);
+                ImGui.Begin("Splatoon scene", ImGuiWindowFlags.NoInputs | ImGuiWindowFlags.NoNav | ImGuiWindowFlags.NoTitleBar
+                    | ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoBackground | ImGuiWindowFlags.AlwaysUseWindowPadding);
+                if (P.Config.SplatoonLowerZ)
+                {
+                    CImGui.igBringWindowToDisplayBack(CImGui.igGetCurrentWindow());
+                }
+                if (P.Config.RenderableZones.Count == 0 || !P.Config.RenderableZonesValid)
+                {
+                    Draw();
+                }
+                else
+                {
+                    foreach (var e in P.Config.RenderableZones)
+                    {
+                        ImGui.PushClipRect(new Vector2(e.Rect.X, e.Rect.Y), new Vector2(e.Rect.Right, e.Rect.Bottom), false);
+                        Draw();
+                        ImGui.PopClipRect();
+                    }
+                }
+                ImGui.End();
+                ImGui.PopStyleVar();
+            }
+            catch (Exception e)
+            {
+                p.Log("Splatoon exception: please report it to developer", true);
+                p.Log(e.Message, true);
+                p.Log(e.StackTrace, true);
             }
         }
         catch (Exception e)
@@ -123,11 +164,13 @@ unsafe class OverlayGui : IDisposable
 
         bool isCircle = totalAngle == MathF.PI * 2;
         StrokeConnection strokeStyle = isCircle ? StrokeConnection.NoConnection : StrokeConnection.ConnectOriginAndEnd;
+
+        e.style.filled = false;
         RenderShape fan = new(e.style, VertexConnection.NoConnection, strokeStyle);
         for (int step = 0; step < vertexCount; step++)
         {
             float angle = e.angleMin + step * angleStep;
-            
+
             var origin = e.origin;
             if (e.innerRadius != 0)
             {
@@ -137,11 +180,12 @@ unsafe class OverlayGui : IDisposable
             var end = RotatePoint(e.origin, angle, e.origin + new Vector3(0, e.outerRadius, 0));
             fan.Add(XZY(origin), XZY(end));
         }
-        fan.Draw(ViewProj); 
+        fan.Draw(ViewProj);
     }
 
     void DrawLineWorld(DisplayObjectLine e)
     {
+        e.style.filled = false;
         ImDrawListPtr drawList = ImGui.GetWindowDrawList();
         if (e.radius == 0)
         {
@@ -176,7 +220,7 @@ unsafe class OverlayGui : IDisposable
             for (int step = 0; step < segments; step++)
             {
                 line.Add(leftStart + step * perpendicularStep, leftStop + step * perpendicularStep);
-                
+
             }
             line.Add(rightStart, rightStop);
             line.Draw(ViewProj);

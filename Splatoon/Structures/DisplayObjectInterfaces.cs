@@ -55,7 +55,7 @@ public class DisplayObjectLine : DisplayObject
 {
     public readonly Vector3 start, stop;
     public readonly float radius;
-    public readonly DisplayStyle style;
+    public DisplayStyle style;
 
     public DisplayObjectLine(Vector3 start, Vector3 stop, float radius, DisplayStyle style)
     {
