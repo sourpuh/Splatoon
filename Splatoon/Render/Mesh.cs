@@ -106,6 +106,7 @@ public class Donut : IMesh
         for (int step = 0; step <= segments; step++)
         {
             float angle = minAngle + step * angleStep;
+            angle += MathF.PI / 2;
             var x = MathF.Cos(angle);
             var y = MathF.Sin(angle);
             vertices[2 * step] = innerRadius * new Vector3(x, 0, y);

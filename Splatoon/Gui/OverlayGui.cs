@@ -82,6 +82,20 @@ unsafe class OverlayGui : IDisposable
             }
             renderer.EndFrame();
 
+            /*
+            foreach (var element in p.displayObjects)
+            {
+                if (element is DisplayObjectFan elementFan)
+                {
+                    DrawTriangleFanWorld(elementFan);
+                }
+                if (element is DisplayObjectLine elementLine)
+                {
+                    DrawLineWorld(elementLine);
+                }
+            }
+            */
+
             foreach (var element in p.displayObjects)
             {
                 if (element is DisplayObjectText elementText)

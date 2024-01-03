@@ -16,8 +16,7 @@ public unsafe class DynamicMesh : IDisposable
     [StructLayout(LayoutKind.Sequential)]
     public struct Constants
     {
-        public Matrix View;
-        public Matrix Proj;
+        public Matrix ViewProj;
     }
 
     public class Builder : IDisposable
@@ -126,8 +125,7 @@ public unsafe class DynamicMesh : IDisposable
 
             struct Constants
             {
-                float4x4 view;
-                float4x4 proj;
+                float4x4 viewProj;
             };
             Constants k : register(c0);
 
@@ -138,8 +136,7 @@ public unsafe class DynamicMesh : IDisposable
                 float wx = dot(lp, i.worldColX);
                 float wy = dot(lp, i.worldColY);
                 float wz = dot(lp, i.worldColZ);
-                float3 viewPos = mul(float4(wx, wy, wz, 1.0), k.view).xyz;
-                res.projPos = mul(float4(viewPos, 1), k.proj);
+                res.projPos = mul(float4(wx, wy, wz, 1.0), k.viewProj);
                 res.color = v.color;
                 return res;
             }
@@ -190,8 +187,7 @@ public unsafe class DynamicMesh : IDisposable
 
     public Builder Build(DeviceContext ctx, Constants consts)
     {
-        consts.View.Transpose();
-        consts.Proj.Transpose();
+        consts.ViewProj.Transpose();
         ctx.UpdateSubresource(ref consts, _constantBuffer);
         return new Builder(ctx, this);
     }

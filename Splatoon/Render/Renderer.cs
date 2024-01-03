@@ -59,7 +59,7 @@ public unsafe class Renderer : IDisposable
         }
 
         _ctx = _rt.BeginRender();
-        _meshBuilder = _mesh.Build(_ctx, new() { View = View, Proj = Proj });
+        _meshBuilder = _mesh.Build(_ctx, new() { ViewProj = ViewProj });
     }
 
     public void EndFrame()
@@ -77,7 +77,19 @@ public unsafe class Renderer : IDisposable
         {
             _mesh.Draw(_ctx);
             _rt.EndRender();
-            ImGui.GetWindowDrawList().AddImage(_rt.ImguiHandle, new(), new(_rt.Size.X, _rt.Size.Y));
+            if (P.Config.RenderableZones.Count == 0 || !P.Config.RenderableZonesValid)
+            {
+                ImGui.GetWindowDrawList().AddImage(_rt.ImguiHandle, new(), new(_rt.Size.X, _rt.Size.Y));
+            }
+            else
+            {
+                foreach (var e in P.Config.RenderableZones)
+                {
+                    ImGui.PushClipRect(new Vector2(e.Rect.X, e.Rect.Y), new Vector2(e.Rect.Right, e.Rect.Bottom), false);
+                    ImGui.GetWindowDrawList().AddImage(_rt.ImguiHandle, new(), new(_rt.Size.X, _rt.Size.Y));
+                    ImGui.PopClipRect();
+                }
+            }
         }
         _ctx = null;
 
