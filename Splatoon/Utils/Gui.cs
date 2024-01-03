@@ -99,8 +99,6 @@ public static unsafe class Gui
 
             Vector2[] originScreenPositions = new Vector2[count];
             Vector2[] endScreenPositions = new Vector2[count];
-            ushort[] originVtx = new ushort[count];
-            ushort[] endVtx = new ushort[count];
 
             // Clip lines to near plane and prepare vertices for drawing
             var segmentsSpan = CollectionsMarshal.AsSpan(segments);
@@ -138,68 +136,25 @@ public static unsafe class Gui
 
                 if (segment.end == prevSegment.end)
                 {
-                    endVtx[i] = endVtx[i - 1];
                     endScreenPositions[i] = endScreenPositions[i - 1];
                 }
                 else
                 {
                     var endScreenPos = WorldToScreen(viewProj, segment.end);
                     endScreenPositions[i] = endScreenPos;
-                    drawList.PrimReserve(0, 1);
-                    drawList.PrimWriteVtx(endScreenPos, UV, endColor);
-                    endVtx[i] = (ushort)(vtxBase++);
                 }
 
                 if (segment.origin == prevSegment.origin)
                 {
-                    originVtx[i] = originVtx[i - 1];
                     originScreenPositions[i] = originScreenPositions[i - 1];
                 }
                 else
                 {
                     var originScreenPos = WorldToScreen(viewProj, segment.origin);
                     originScreenPositions[i] = originScreenPos;
-                    drawList.PrimReserve(0, 1);
-                    drawList.PrimWriteVtx(originScreenPos, UV, originColor);
-                    originVtx[i] = (ushort)(vtxBase++);
                 }
 
                 prevSegment = segment;
-            }
-
-            // Draw triangles
-            if (style.filled)
-            {
-                for (int i = 0; i < count; i++)
-                {
-                    int nextIndex = (i + 1) % count;
-                    if (cull[i] || cull[nextIndex])
-                    {
-                        continue;
-                    }
-                    if (i + 1 == count && connectStyle == VertexConnection.NoConnection)
-                    {
-                        break;
-                    }
-
-                    if (originVtx[i] != originVtx[nextIndex])
-                    {
-                        drawList.PrimReserve(3, 0);
-
-                        drawList.PrimWriteIdx(originVtx[i]);
-                        drawList.PrimWriteIdx(originVtx[nextIndex]);
-                        drawList.PrimWriteIdx(endVtx[i]);
-                    }
-
-                    if (endVtx[i] != endVtx[nextIndex])
-                    {
-                        drawList.PrimReserve(3, 0);
-
-                        drawList.PrimWriteIdx(endVtx[i]);
-                        drawList.PrimWriteIdx(originVtx[nextIndex]);
-                        drawList.PrimWriteIdx(endVtx[nextIndex]);
-                    }
-                }
             }
 
             if (style.strokeThickness > 0 && (style.strokeColor & 0xFF000000) > 0)

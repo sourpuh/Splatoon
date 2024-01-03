@@ -53,7 +53,7 @@ unsafe class OverlayGui : IDisposable
     }
     public static int HorizontalLinearSegments(float radius)
     {
-        return Math.Max((int)(radius / LINEAR_SEGMENTS_PER_UNIT), 1);
+        return 1;
     }
 
     void Draw()
@@ -70,14 +70,14 @@ unsafe class OverlayGui : IDisposable
             renderer.BeginFrame();
             foreach (var element in p.displayObjects)
             {
-                if (element is DisplayObjectFan elementFan)
+                if (element is DisplayObjectFan elementFan && elementFan.style.filled)
                 {
                     renderer.DrawDonut(XZY(elementFan.origin), elementFan.innerRadius, elementFan.outerRadius, elementFan.angleMin, elementFan.angleMax, elementFan.style.originFillColor.ToVector4(), elementFan.style.endFillColor.ToVector4());
 
                     //renderer.DrawCircle(XZY(elementFan.origin), elementFan.outerRadius, 0, 2 * MathF.PI, elementFan.style.strokeColor.ToVector4());
                     //renderer.DebugShape(XZY(elementFan.origin), elementFan.style.strokeColor.ToVector4());
                 }
-                if (element is DisplayObjectLine elementLine)
+                if (element is DisplayObjectLine elementLine && elementLine.style.filled)
                 {
                     renderer.DrawLine(elementLine.start, elementLine.stop - elementLine.start, elementLine.radius, elementLine.style.originFillColor.ToVector4(), elementLine.style.endFillColor.ToVector4());
                 }
@@ -120,7 +120,7 @@ unsafe class OverlayGui : IDisposable
                     | ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoBackground | ImGuiWindowFlags.AlwaysUseWindowPadding);
                 if (P.Config.SplatoonLowerZ)
                 {
-                    CImGui.igBringWindowToDisplayBack(CImGui.igGetCurrentWindow());
+                    //CImGui.igBringWindowToDisplayBack(CImGui.igGetCurrentWindow());
                 }
                 if (P.Config.RenderableZones.Count == 0 || !P.Config.RenderableZonesValid)
                 {

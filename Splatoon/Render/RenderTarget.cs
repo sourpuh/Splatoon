@@ -64,8 +64,8 @@ public unsafe class RenderTarget : IDisposable
 
         var blendDescription = BlendStateDescription.Default();
         blendDescription.RenderTarget[0].IsBlendEnabled = true;
-        blendDescription.RenderTarget[0].SourceBlend = BlendOption.InverseDestinationAlpha;
-        blendDescription.RenderTarget[0].DestinationBlend = BlendOption.InverseDestinationAlpha;
+        blendDescription.RenderTarget[0].SourceBlend = BlendOption.One;
+        blendDescription.RenderTarget[0].DestinationBlend = BlendOption.InverseSourceAlpha;
         blendDescription.RenderTarget[0].BlendOperation = BlendOperation.Add;
         blendDescription.RenderTarget[0].SourceAlphaBlend = BlendOption.One;
         blendDescription.RenderTarget[0].DestinationAlphaBlend = BlendOption.Zero;

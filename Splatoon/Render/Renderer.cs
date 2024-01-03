@@ -72,6 +72,10 @@ public unsafe class Renderer : IDisposable
         ImGuiHelpers.SetNextWindowPosRelativeMainViewport(new Vector2(0, 0));
         ImGui.Begin("world_overlay", ImGuiWindowFlags.NoInputs | ImGuiWindowFlags.NoNav | ImGuiWindowFlags.NoTitleBar | ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoBackground);
         ImGui.SetWindowSize(ImGui.GetIO().DisplaySize);
+        if (P.Config.SplatoonLowerZ)
+        {
+            CImGui.igBringWindowToDisplayBack(CImGui.igGetCurrentWindow());
+        }
 
         if (_ctx != null && _rt != null)
         {
