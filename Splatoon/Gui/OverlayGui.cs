@@ -8,8 +8,8 @@ namespace Splatoon.Gui;
 unsafe class OverlayGui : IDisposable
 {
     const int RADIAL_SEGMENTS_PER_RADIUS_UNIT = 20;
-    const int MINIMUM_CIRCLE_SEGMENTS = 24;
-    public const int MAXIMUM_CIRCLE_SEGMENTS = 240;
+    const int MINIMUM_CIRCLE_SEGMENTS = 64;
+    public const int MAXIMUM_CIRCLE_SEGMENTS = 360;
 
     Renderer renderer;
     AutoClipZones autoClipZones;

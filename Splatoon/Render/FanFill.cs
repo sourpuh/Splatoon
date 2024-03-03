@@ -25,8 +25,10 @@ public class FanFill : IDisposable
         public float OuterRadius;
         public float MinAngle;
         public float MaxAngle;
+        public float CastFraction;
         public Vector4 ColorOrigin;
         public Vector4 ColorEnd;
+        public Vector4 ColorStroke;
     }
 
     public class Data : IDisposable
@@ -46,7 +48,7 @@ public class FanFill : IDisposable
             }
 
             public void Add(ref Instance inst) => _circles.Add(ref inst);
-            public void Add(Vector3 world, float innerRadius, float outerRadius, float minAngle, float maxAngle, Vector4 colorOrigin, Vector4 colorEnd) =>
+            public void Add(Vector3 world, float innerRadius, float outerRadius, float minAngle, float maxAngle, float castFraction, Vector4 colorOrigin, Vector4 colorEnd, Vector4 colorStroke) =>
                 _circles.Add(new Instance()
                 {
                     Origin = world,
@@ -54,8 +56,10 @@ public class FanFill : IDisposable
                     OuterRadius = outerRadius,
                     MinAngle = minAngle,
                     MaxAngle = maxAngle,
+                    CastFraction = castFraction,
                     ColorOrigin = colorOrigin,
-                    ColorEnd = colorEnd
+                    ColorEnd = colorEnd,
+                    ColorStroke = colorStroke,
                 });
         }
 
@@ -104,20 +108,27 @@ public class FanFill : IDisposable
                 float outerRadius : RADIUS1;
                 float minAngle : ANGLE0;
                 float maxAngle : ANGLE1;
+                float castFraction : FRACTION;
                 float4 colorOrigin : INSTANCECOLOR0;
                 float4 colorEnd : INSTANCECOLOR1;
+                float4 colorStroke : INSTANCECOLOR2;
             };
 
             struct VSOutput
             {
                 float4 projPos : SV_POSITION;
-                float4 color : COLOR;
+                nointerpolation float castFraction: FRACTION;
+                float4 color : COLOR0;
+                nointerpolation float4 colorStroke : COLOR1;
                 float2 tex : TEXCOORD;
             };
 
             VSOutput vs(in Fan instance, uint vertexId: SV_VertexID, uint instanceId: SV_InstanceID)
             {
+                float instanceRadius = instance.outerRadius - instance.innerRadius;
                 VSOutput o;
+                o.castFraction = instanceRadius * instance.castFraction;
+                o.colorStroke = instance.colorStroke;
 
                 uint i = vertexId / 2;
 
@@ -128,7 +139,7 @@ public class FanFill : IDisposable
                     radius = instance.innerRadius;
                 } else {
                     o.color = instance.colorEnd;
-                    o.tex.y = instance.outerRadius - instance.innerRadius;
+                    o.tex.y = instanceRadius;
                     radius = instance.outerRadius;
                 }
                 float totalAngle = instance.maxAngle - instance.minAngle;
@@ -143,7 +154,16 @@ public class FanFill : IDisposable
 
             float4 ps(VSOutput input) : SV_Target
             {
-                return input.color;
+                float4 color = input.color;
+
+                float xb = input.tex.y - input.castFraction;
+                float alpha = color.a + input.colorStroke.a * exp(-(xb*xb) / 0.001);
+                color.a = alpha;
+                if (alpha > 1) {
+                    alpha -= 1;
+                    color.rgb += float3(alpha,alpha,alpha);
+                }
+                return color;
             }
             """;
 
@@ -163,8 +183,10 @@ public class FanFill : IDisposable
             new InputElement("RADIUS", 1, Format.R32_Float, -1, 0, InputClassification.PerInstanceData, 1),
             new InputElement("ANGLE", 0, Format.R32_Float, -1, 0, InputClassification.PerInstanceData, 1),
             new InputElement("ANGLE", 1, Format.R32_Float, -1, 0, InputClassification.PerInstanceData, 1),
+            new InputElement("FRACTION", 0, Format.R32_Float, -1, 0, InputClassification.PerInstanceData, 1),
             new InputElement("INSTANCECOLOR", 0, Format.R32G32B32A32_Float, -1, 0, InputClassification.PerInstanceData, 1),
             new InputElement("INSTANCECOLOR", 1, Format.R32G32B32A32_Float, -1, 0, InputClassification.PerInstanceData, 1),
+            new InputElement("INSTANCECOLOR", 2, Format.R32G32B32A32_Float, -1, 0, InputClassification.PerInstanceData, 1),
         ]);
     }
 

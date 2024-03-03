@@ -154,8 +154,10 @@ public unsafe class Renderer : IDisposable
                 fan.outerRadius,
                 fan.angleMin,
                 fan.angleMax,
+                fan.castFraction,
                 fan.style.originFillColor.ToVector4(),
-                fan.style.endFillColor.ToVector4());
+                fan.style.endFillColor.ToVector4(),
+                fan.style.strokeColor.ToVector4());
         }
         Fan.Stroke(GetStroke(), fan, segments);
     }
@@ -179,8 +181,10 @@ public unsafe class Renderer : IDisposable
                 line.start,
                 line.stop,
                 line.radius,
+                line.castFraction,
                 line.style.originFillColor.ToVector4(),
-                line.style.endFillColor.ToVector4());
+                line.style.endFillColor.ToVector4(),
+                line.style.strokeColor.ToVector4());
             }
             var leftStart = line.start - line.PerpendicularRadius;
             var leftStop = line.stop - line.PerpendicularRadius;

@@ -24,29 +24,30 @@ public class DisplayObjectFan : DisplayObject
 {
     public readonly Vector3 origin;
 
-    public readonly float innerRadius, outerRadius, angleMin, angleMax;
+    public readonly float innerRadius, outerRadius, angleMin, angleMax, castFraction;
     public readonly DisplayStyle style;
-    public DisplayObjectFan(Vector3 origin, float innerRadius, float outerRadius, float angleMin, float angleMax, DisplayStyle style)
+    public DisplayObjectFan(Vector3 origin, float innerRadius, float outerRadius, float angleMin, float angleMax, float castFraction, DisplayStyle style)
     {
         this.origin = origin;
         this.innerRadius = innerRadius;
         this.outerRadius = outerRadius;
         this.angleMin = angleMin;
         this.angleMax = angleMax;
+        this.castFraction = castFraction;
         this.style = style;
     }
 }
 
 public class DisplayObjectCircle : DisplayObjectFan
 {
-    public DisplayObjectCircle(Vector3 origin, float radius, DisplayStyle style) : base(origin, 0, radius, 0, 2 * MathF.PI, style)
+    public DisplayObjectCircle(Vector3 origin, float radius, float castFraction, DisplayStyle style) : base(origin, 0, radius, 0, 2 * MathF.PI, castFraction, style)
     {
     }
 }
 
 public class DisplayObjectDonut : DisplayObjectFan
 {
-    public DisplayObjectDonut(Vector3 origin, float innerRadius, float donutRadius, DisplayStyle style) : base(origin, innerRadius, innerRadius + donutRadius, 0, 2 * MathF.PI, style)
+    public DisplayObjectDonut(Vector3 origin, float innerRadius, float donutRadius, float castFraction, DisplayStyle style) : base(origin, innerRadius, innerRadius + donutRadius, 0, 2 * MathF.PI, castFraction, style)
     {
     }
 }
@@ -55,13 +56,15 @@ public class DisplayObjectLine : DisplayObject
 {
     public readonly Vector3 start, stop;
     public readonly float radius;
+    public readonly float castFraction;
     public readonly DisplayStyle style;
 
-    public DisplayObjectLine(Vector3 start, Vector3 stop, float radius, DisplayStyle style)
+    public DisplayObjectLine(Vector3 start, Vector3 stop, float radius, float castFraction, DisplayStyle style)
     {
         this.start = start;
         this.stop = stop;
         this.radius = radius;
+        this.castFraction = castFraction;
         this.style = style;
     }
 
@@ -70,6 +73,7 @@ public class DisplayObjectLine : DisplayObject
         this.start = new Vector3(ax, az, ay);
         this.stop = new Vector3(bx, bz, by);
         this.radius = 0;
+        this.castFraction = -1;
         this.style = new DisplayStyle(color, thickness, 0f, 0, 0);
     }
     public Vector3 Direction

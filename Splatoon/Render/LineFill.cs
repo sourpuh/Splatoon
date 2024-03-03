@@ -22,7 +22,9 @@ public class LineFill : IDisposable
     {
         public Vector3 World;
         public float Radius;
+        public float CastFraction;
         public Vector4 Color;
+        public Vector4 ColorStroke;
     }
 
     public class Data : IDisposable
@@ -42,19 +44,23 @@ public class LineFill : IDisposable
             }
 
             public void Add(ref Instance inst) => _lines.Add(ref inst);
-            public void Add(Vector3 start, Vector3 stop, float radius, Vector4 colorOrigin, Vector4 colorEnd)
+            public void Add(Vector3 start, Vector3 stop, float radius, float castFraction, Vector4 colorOrigin, Vector4 colorEnd, Vector4 colorStroke)
             {
                 _lines.Add(new Instance()
                 {
                     World = start,
                     Radius = radius,
+                    CastFraction = castFraction,
                     Color = colorOrigin,
+                    ColorStroke = colorStroke,
                 });
                 _lines.Add(new Instance()
                 {
                     World = stop,
                     Radius = radius,
+                    CastFraction = castFraction,
                     Color = colorEnd,
+                    ColorStroke = colorStroke,
                 });
             }
         }
@@ -96,13 +102,18 @@ public class LineFill : IDisposable
             {
                 float3 world : World;
                 float radius : Radius;
-                float4 color : Color;
+                float castFraction: FRACTION;
+                float4 color : INSTANCECOLOR0;
+                float4 colorStroke : INSTANCECOLOR1;
             };
 
             struct GSOutput
             {
                 float4 projPos : SV_Position;
-                float4 color : Color;
+                nointerpolation float castFraction: FRACTION;
+                float4 color : COLOR0;
+                nointerpolation float4 colorStroke : COLOR1;
+                float2 tex : TEXCOORD;
             };
 
             struct Constants
@@ -122,25 +133,46 @@ public class LineFill : IDisposable
                 Line start = input[0];
                 Line stop = input[1];
             
+                float length = distance(start.world, stop.world);
                 float3 perpendicular = normalize(cross(stop.world - start.world, float3(0,1,0)));
 
                 GSOutput v;
+                v.colorStroke = start.colorStroke;
+                v.castFraction = start.castFraction * length;
+                v.tex.y = 0;
+
+                v.tex.x = 0;
                 v.color = start.color;
                 v.projPos = mul(float4( start.world + perpendicular * start.radius, 1), k.viewProj);
                 output.Append(v);
+
+                v.tex.x = 1;
                 v.projPos = mul(float4( start.world - perpendicular * start.radius, 1), k.viewProj);
                 output.Append(v);
             
+                v.tex.y = length;
+                v.tex.x = 0;
                 v.color = stop.color;
                 v.projPos = mul(float4( stop.world + perpendicular * stop.radius, 1), k.viewProj);
                 output.Append(v);
+
+                v.tex.x = 1;
                 v.projPos = mul(float4( stop.world - perpendicular * stop.radius, 1), k.viewProj);
                 output.Append(v);
             }
 
             float4 ps(GSOutput input) : SV_Target
             {
-                return input.color;
+                float4 color = input.color;
+            
+                float xb = input.tex.y - input.castFraction;
+                float alpha = color.a + input.colorStroke.a * exp(-(xb*xb) / 0.001);
+                color.a = alpha;
+                if (alpha > 1) {
+                    alpha -= 1;
+                    color.rgb += float3(alpha,alpha,alpha);
+                }
+                return color;
             }
             """;
 
@@ -161,7 +193,9 @@ public class LineFill : IDisposable
         [
             new InputElement("World", 0, Format.R32G32B32_Float, -1, 0),
             new InputElement("Radius", 0, Format.R32_Float, -1, 0),
-            new InputElement("Color", 0, Format.R32G32B32A32_Float, -1, 0),
+            new InputElement("FRACTION", 0, Format.R32_Float, -1, 0),
+            new InputElement("INSTANCECOLOR", 0, Format.R32G32B32A32_Float, -1, 0),
+            new InputElement("INSTANCECOLOR", 1, Format.R32G32B32A32_Float, -1, 0),
         ]);
     }
 

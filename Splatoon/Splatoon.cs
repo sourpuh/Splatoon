@@ -733,15 +733,15 @@ public unsafe class Splatoon : IDalamudPlugin
                 {
                     var pointPos = GetPlayerPositionXZY();
                     DrawCircle(e, pointPos.X, pointPos.Y, pointPos.Z, radius, e.includeRotation ? Svc.ClientState.LocalPlayer.Rotation : 0f,
-                        e.overlayPlaceholders ? Svc.ClientState.LocalPlayer : null);
+                        Svc.ClientState.LocalPlayer);
                 }
                 else if (e.type == 3)
                 {
-                    AddRotatedLine(GetPlayerPositionXZY(), Svc.ClientState.LocalPlayer.Rotation, e, radius, 0f);
+                    AddRotatedLine(GetPlayerPositionXZY(), Svc.ClientState.LocalPlayer.Rotation, e, radius, 0f, Svc.ClientState.LocalPlayer);
                 }
                 else if (e.type == 4)
                 {
-                    DrawCone(e, GetPlayerPositionXZY(), radius, Svc.ClientState.LocalPlayer.Rotation);
+                    DrawCone(e, GetPlayerPositionXZY(), radius, Svc.ClientState.LocalPlayer.Rotation, Svc.ClientState.LocalPlayer);
                 }
             }
             else if (e.refActorType == 2 && Svc.Targets.Target != null
@@ -754,21 +754,21 @@ public unsafe class Splatoon : IDalamudPlugin
                     {
                         DrawCircle(e, Svc.Targets.Target.GetPositionXZY().X, Svc.Targets.Target.GetPositionXZY().Y,
                             Svc.Targets.Target.GetPositionXZY().Z, radius, e.includeRotation ? Svc.Targets.Target.Rotation : 0f,
-                            e.overlayPlaceholders ? Svc.Targets.Target : null);
+                            Svc.Targets.Target);
                     }
                     else if (e.type == 3)
                     {
                         var angle = e.FaceMe ?
                                             (180 - (MathHelper.GetRelativeAngle(Svc.Targets.Target.Position.ToVector2(), Svc.ClientState.LocalPlayer.Position.ToVector2()))).DegreesToRadians()
                                             : Svc.Targets.Target.Rotation;
-                        AddRotatedLine(Svc.Targets.Target.GetPositionXZY(), angle, e, radius, Svc.Targets.Target.HitboxRadius);
+                        AddRotatedLine(Svc.Targets.Target.GetPositionXZY(), angle, e, radius, Svc.Targets.Target.HitboxRadius, Svc.Targets.Target);
                     }
                     else if (e.type == 4)
                     {
                         var baseAngle = e.FaceMe ?
                                     (180 - (MathHelper.GetRelativeAngle(Svc.Targets.Target.Position.ToVector2(), Svc.ClientState.LocalPlayer.Position.ToVector2()))).DegreesToRadians()
                                     : Svc.Targets.Target.Rotation;
-                        DrawCone(e, Svc.Targets.Target.GetPositionXZY(), radius, baseAngle);
+                        DrawCone(e, Svc.Targets.Target.GetPositionXZY(), radius, baseAngle, Svc.Targets.Target);
                     }
                 }
             }
@@ -793,22 +793,21 @@ public unsafe class Splatoon : IDalamudPlugin
                             if (e.type == 1)
                             {
                                 DrawCircle(e, a.GetPositionXZY().X, a.GetPositionXZY().Y, a.GetPositionXZY().Z, aradius,
-                                    e.includeRotation ? a.Rotation : 0f,
-                                    e.overlayPlaceholders ? a : null);
+                                    e.includeRotation ? a.Rotation : 0f, a);
                             }
                             else if (e.type == 3)
                             {
                                 var angle = e.FaceMe ?
                                             (180 - (MathHelper.GetRelativeAngle(a.Position.ToVector2(), Svc.ClientState.LocalPlayer.Position.ToVector2()))).DegreesToRadians()
                                             : a.Rotation;
-                                AddRotatedLine(a.GetPositionXZY(), angle, e, aradius, a.HitboxRadius);
+                                AddRotatedLine(a.GetPositionXZY(), angle, e, aradius, a.HitboxRadius, a);
                             }
                             else if (e.type == 4)
                             {
                                 var baseAngle = e.FaceMe ?
                                     (180 - (MathHelper.GetRelativeAngle(a.Position.ToVector2(), Svc.ClientState.LocalPlayer.Position.ToVector2()))).DegreesToRadians()
                                     : (a.Rotation);
-                                DrawCone(e, a.GetPositionXZY(), aradius, baseAngle);
+                                DrawCone(e, a.GetPositionXZY(), aradius, baseAngle, a);
                             }
                         }
                     }
@@ -819,7 +818,7 @@ public unsafe class Splatoon : IDalamudPlugin
         }
         else if (e.type == 2)
         {
-            var line = new DisplayObjectLine(new Vector3(e.refX, e.refZ, e.refY), new Vector3(e.offX, e.offZ, e.offY), e.radius, e.StyleWithOverride);
+            var line = new DisplayObjectLine(new Vector3(e.refX, e.refZ, e.refY), new Vector3(e.offX, e.offZ, e.offY), e.radius, -1, e.StyleWithOverride);
             displayObjects.Add(line);
             if (e.radius > 0)
             {
@@ -903,6 +902,39 @@ public unsafe class Splatoon : IDalamudPlugin
                 return false;
             }
         }
+    }
+
+    static float CastFraction(Element e, GameObject go)
+    {
+        if (go is BattleChara chr)
+        {
+            return CastFraction(e, chr);
+        }
+        return -1;
+    }
+
+    static float CastFraction(Element e, BattleChara chr)
+    {
+        float castTime = -1;
+        float totalCastTime = 1;
+        if (chr.IsCasting(e.refActorCastId))
+        {
+            castTime = chr.CurrentCastTime;
+            totalCastTime = chr.TotalCastTime;
+        }
+        else if (!(e.refActorUseOvercast && AttachedInfo.TryGetCastTime(chr.Address, e.refActorCastId, out castTime)))
+        {
+            return -1;
+        }
+
+        if (e.refActorUseCastTime)
+        {
+            castTime -= e.refActorCastTimeMin;
+            totalCastTime = e.refActorCastTimeMax - e.refActorCastTimeMin;
+        }
+        if (castTime <= 0 || totalCastTime <= 0 || castTime > totalCastTime) return -1;
+
+        return castTime / totalCastTime;
     }
 
     static bool CheckEffect(Element e, BattleChara c)
@@ -1038,7 +1070,7 @@ public unsafe class Splatoon : IDalamudPlugin
             {
                 end += Vector3.Normalize(end - origin) * e.ExtraTetherLength;
             }
-            displayObjects.Add(new DisplayObjectLine(origin, end, 0, e.StyleWithOverride));
+            displayObjects.Add(new DisplayObjectLine(origin, end, 0, -1, e.StyleWithOverride));
         }
         if (!ShouldDraw(cx, GetPlayerPositionXZY().X, cy, GetPlayerPositionXZY().Y)) return;
         if (e.thicc > 0)
@@ -1047,13 +1079,13 @@ public unsafe class Splatoon : IDalamudPlugin
             {
                 if (e.Donut > 0)
                 {
-                    displayObjects.Add(new DisplayObjectDonut(new(cx, z + e.offZ, cy), r, e.Donut, e.StyleWithOverride));
+                    displayObjects.Add(new DisplayObjectDonut(new(cx, z + e.offZ, cy), r, e.Donut, CastFraction(e, go), e.StyleWithOverride));
                     if (UnsafeElement.IsEnabled && e.IsDangerous) UnsafeElement.ProcessDonut(new(cx, z + e.offZ, cy), r, e.Donut);
                 }
                 else
                 {
                     DisplayStyle style = e.StyleWithOverride;
-                    displayObjects.Add(new DisplayObjectCircle(new(cx, z + e.offZ, cy), r, style));
+                    displayObjects.Add(new DisplayObjectCircle(new(cx, z + e.offZ, cy), r, CastFraction(e, go), style));
                     if (UnsafeElement.IsEnabled && e.IsDangerous) UnsafeElement.ProcessCircle(new(cx, z + e.offZ, cy), r);
                 }
             }
@@ -1065,7 +1097,7 @@ public unsafe class Splatoon : IDalamudPlugin
         if (e.overlayText.Length > 0)
         {
             var text = e.overlayText;
-            if (go != null)
+            if (e.overlayPlaceholders && go != null)
             {
                 text = text
                     .Replace("$NAMEID", $"{(go is Character chr2 ? chr2.NameId : 0).Format()}")
@@ -1087,7 +1119,7 @@ public unsafe class Splatoon : IDalamudPlugin
             displayObjects.Add(new DisplayObjectText(cx, cy, z + e.offZ + e.overlayVOffset, text, e.overlayBGColor, e.overlayTextColor, e.overlayFScale));
         }
     }
-    internal void DrawCone(Element e, Vector3 origin, float? radius = null, float baseAngle = 0f)
+    internal void DrawCone(Element e, Vector3 origin, float? radius = null, float baseAngle = 0f, GameObject go = null)
     {
         if (e.coneAngleMax > e.coneAngleMin)
         {
@@ -1115,13 +1147,13 @@ public unsafe class Splatoon : IDalamudPlugin
                 {
                     end += Vector3.Normalize(end - center) * e.ExtraTetherLength;
                 }
-                displayObjects.Add(new DisplayObjectLine(center, end, 0, e.StyleWithOverride));
+                displayObjects.Add(new DisplayObjectLine(center, end, 0, CastFraction(e, go), e.StyleWithOverride));
             }
-            displayObjects.Add(new DisplayObjectFan(center, innerRadius, outerRadius, angleMin, angleMax, e.StyleWithOverride));
+            displayObjects.Add(new DisplayObjectFan(center, innerRadius, outerRadius, angleMin, angleMax, CastFraction(e, go), e.StyleWithOverride));
         }
     }
 
-    void AddRotatedLine(Vector3 tPos, float angle, Element e, float aradius, float hitboxRadius)
+    void AddRotatedLine(Vector3 tPos, float angle, Element e, float aradius, float hitboxRadius, GameObject go = null)
     {
         if (e.includeRotation)
         {
@@ -1154,7 +1186,7 @@ public unsafe class Splatoon : IDalamudPlugin
                     tPos.Y + e.offY,
                     tPos.Z + e.offZ));
 
-                var line = new DisplayObjectLine(XZY(start), XZY(stop), aradius, e.StyleWithOverride);
+                var line = new DisplayObjectLine(XZY(start), XZY(stop), aradius, CastFraction(e, go), e.StyleWithOverride);
                 displayObjects.Add(line);
                 if (UnsafeElement.IsEnabled && e.IsDangerous) UnsafeElement.ProcessLine(line);
             }
