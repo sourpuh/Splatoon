@@ -39,8 +39,8 @@ unsafe partial class CGui:IDisposable
     {
         this.p = p;
         Svc.PluginInterface.UiBuilder.Draw += Draw;
-        ActionNames = Svc.Data.GetExcelSheet<Lumina.Excel.GeneratedSheets.Action>().ToDictionary(x => x.RowId, x => $"{x.RowId} | {x.Name}");
-        BuffNames = Svc.Data.GetExcelSheet<Lumina.Excel.GeneratedSheets.Status>().ToDictionary(x => x.RowId, x => $"{x.RowId} | {x.Name}");
+        ActionNames = Svc.Data.GetExcelSheet<Lumina.Excel.Sheets.Action>().ToDictionary(x => x.RowId, x => $"{x.RowId} | {x.Name}");
+        BuffNames = Svc.Data.GetExcelSheet<Lumina.Excel.Sheets.Status>().ToDictionary(x => x.RowId, x => $"{x.RowId} | {x.Name}");
     }
 
     public void Dispose()
@@ -130,7 +130,8 @@ unsafe partial class CGui:IDisposable
                             ("Find".Loc(), TabFind.Draw, null, true),
                             ("Debug".Loc(), DisplayDebug, null, true),
                             ("Log".Loc(), InternalLog.PrintImgui, null, false),
-                            ("Dynamic".Loc(), DisplayDynamicElements, null, true)
+                            ("Dynamic".Loc(), DisplayDynamicElements, null, true),
+                            ("Trusted Repos".Loc(), TabTrustedRepos.Draw, null, true)
                             );
                         }, null, true),
                         ("Contribute".Loc(), Contribute.Draw, null, true)
@@ -222,7 +223,7 @@ unsafe partial class CGui:IDisposable
 
     private void SetCursorTo(float refX, float refZ, float refY)
     {
-        if (Svc.GameGui.WorldToScreen(new Vector3(refX, refZ, refY), out var screenPos))
+        if (Utils.WorldToScreen(new Vector3(refX, refZ, refY), out var screenPos))
         {
             var point = new POINT() { x = (int)screenPos.X, y = (int)screenPos.Y };
             //Chat.Print(point.X + "/" + point.Y);

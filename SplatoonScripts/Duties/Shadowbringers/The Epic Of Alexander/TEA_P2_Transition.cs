@@ -17,12 +17,12 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace SplatoonScriptsOfficial.Duties.Shadowbringers
+namespace SplatoonScriptsOfficial.Duties.Shadowbringers.The_Epic_Of_Alexander
 {
     public class TEA_P2_Transition : SplatoonScript
     {
         public override HashSet<uint> ValidTerritories => new() { 887 };
-        public override Metadata? Metadata => new(2, "Madou Shoujo");
+        public override Metadata? Metadata => new(4, "Madou Shoujo");
         private string ElementNamePrefix = "TEA_P2_Transition_Bait_Position";
         // ActionEffectId of the exaflare.
         private uint HawkBlast = 18480;
@@ -110,7 +110,7 @@ namespace SplatoonScriptsOfficial.Duties.Shadowbringers
 
         public override void OnMessage(string Message)
         {
-            if (Message == "Designation: Blassty. Intruders to central calculation system detected. Initiating extermination protocol!")
+            if (Message.Contains(Loc(en: "Designation: Blassty. Intruders to central calculation system detected. Initiating extermination protocol!", null, de: "Codename Blassty - Differenzraum gefährdet ... Zugriff wird abgewehrt!")))
             {
                 MechanicActive = true;
             }
@@ -177,7 +177,7 @@ namespace SplatoonScriptsOfficial.Duties.Shadowbringers
             if (!MechanicActive)
                 return;
 
-            if (set.Action.RowId == HawkBlast)
+            if (set.Action.Value.RowId == HawkBlast)
             {
                 BlastCount++;
 
