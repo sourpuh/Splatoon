@@ -3,6 +3,7 @@ using ECommons.DalamudServices.Legacy;
 using ECommons.GameFunctions;
 using FFXIVClientStructs.FFXIV.Client.Game.Character;
 using FFXIVClientStructs.FFXIV.Client.Game.Object;
+using Lumina.Excel.Sheets;
 using Reloaded.Hooks.Definitions.X64;
 using Splatoon.Modules;
 using Splatoon.SplatoonScripting;
@@ -81,12 +82,14 @@ public unsafe static class AttachedInfo
                     var text = $"VFX {vfxPath} spawned on {(obj.Address == Svc.ClientState.LocalPlayer?.Address ? "me" : obj.Name.ToString())} npc id={obj.Struct()->GetNameId()}, model id={c.Struct()->ModelCharaId}, name npc id={c.NameId}, position={obj.Position.ToString()}";
                     P.ChatMessageQueue.Enqueue(text);
                     if (P.Config.Logging) Logger.Log(text);
+                    if(obj is IBattleNpc) P.LogWindow.Log(text);
                 }
                 else
                 {
                     var text = $"VFX {vfxPath} spawned on {obj.Name.ToString()} npc id={obj.Struct()->GetNameId()}, position={obj.Position.ToString()}";
                     P.ChatMessageQueue.Enqueue(text);
                     if (P.Config.Logging) Logger.Log(text);
+                    if(obj is IBattleNpc) P.LogWindow.Log(text);
                 }
             }
         }
@@ -146,8 +149,9 @@ public unsafe static class AttachedInfo
         {
             if(x is IBattleChara b) {
                 bool isCasting;
-                try {
-                    isCasting = b.IsCasting;
+                try 
+                {
+                    isCasting = b.Struct()->GetCastInfo() != null && b.IsCasting;
                 }
                 catch {
                     // Ignore invalid BattleChara objects that exist during cutscenes
@@ -174,6 +178,7 @@ public unsafe static class AttachedInfo
                         if (P.Config.Logging)
                         {
                             Logger.Log(text);
+                            if(b is IBattleNpc) P.LogWindow.Log(text);
                         }
                     }
                 }

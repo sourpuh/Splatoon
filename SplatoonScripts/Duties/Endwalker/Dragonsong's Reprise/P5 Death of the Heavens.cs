@@ -12,6 +12,7 @@ using ECommons.ChatMethods;
 using ECommons.Configuration;
 using ECommons.DalamudServices;
 using ECommons.DalamudServices.Legacy;
+using ECommons.ExcelServices;
 using ECommons.GameFunctions;
 using ECommons.GameHelpers;
 using ECommons.Hooks;
@@ -19,7 +20,9 @@ using ECommons.Hooks.ActionEffectTypes;
 using ECommons.ImGuiMethods;
 using ECommons.Logging;
 using ECommons.MathHelpers;
+using ECommons.PartyFunctions;
 using FFXIVClientStructs.FFXIV.Client.Game;
+using FFXIVClientStructs.FFXIV.Client.UI.Info;
 using ImGuiNET;
 using Splatoon;
 using Splatoon.SplatoonScripting;
@@ -45,6 +48,8 @@ public unsafe class P5_Death_of_the_Heavens : SplatoonScript
     private Vector3 _lastPlayerPosition = Vector3.Zero;
     private BaitType _myBait = BaitType.None;
     private PlaystationMarker _myMarker = PlaystationMarker.Circle;
+    private readonly ImGuiEx.RealtimeDragDrop<Job> DragDrop = new("DragDropJob", x => x.ToString());
+
     public override HashSet<uint>? ValidTerritories => [968];
     private Config C => Controller.GetConfig<Config>();
     public override Metadata? Metadata => new(5, "Garume");
@@ -57,76 +62,59 @@ public unsafe class P5_Death_of_the_Heavens : SplatoonScript
 
     private Vector2 GetBaitPosition(State state, BaitType bait)
     {
-        switch (state, bait)
+        var position = (state, bait) switch
         {
-            case (State.FirstSplit, BaitType.Red1):
-                return new Vector2(12.49f, 8.5f);
-            case (State.FirstSplit, BaitType.Red2):
-                return new Vector2(12.49f, 24.76f);
-            case (State.FirstSplit, BaitType.Red3):
-                return new Vector2(-12.49f, 24.76f);
-            case (State.FirstSplit, BaitType.Red4):
-                return new Vector2(-12.49f, 8.5f);
-            case (State.FirstSplit, BaitType.Blue1):
-                return new Vector2(20.5f, 8.5f);
-            case (State.FirstSplit, BaitType.Blue2):
-                return new Vector2(12.49f, -7.76f);
-            case (State.FirstSplit, BaitType.Blue3):
-                return new Vector2(-12.49f, -7.76f);
-            case (State.FirstSplit, BaitType.Blue4):
-                return new Vector2(-20.5f, 8.5f);
-            case (State.SecondSplit, BaitType.Red1):
-                return new Vector2(8f, 9f);
-            case (State.SecondSplit, BaitType.Red2):
-                return new Vector2(1.4f, 7.6f);
-            case (State.SecondSplit, BaitType.Red3):
-                return new Vector2(-1.4f, 7.6f);
-            case (State.SecondSplit, BaitType.Red4):
-                return new Vector2(-9f, 9f);
-            case (State.SecondSplit, BaitType.Blue1):
-                return C.PrePlaystationSplit switch
-                {
-                    PrePlaystationSplit.Horizontal => new Vector2(6f, 13.5f),
-                    PrePlaystationSplit.Vertical => new Vector2(0f, 9f),
-                    _ => throw new ArgumentOutOfRangeException()
-                };
-            case (State.SecondSplit, BaitType.Blue2):
-                return C.PrePlaystationSplit switch
-                {
-                    PrePlaystationSplit.Horizontal => new Vector2(2f, 13.5f),
-                    PrePlaystationSplit.Vertical => new Vector2(0f, 11.5f),
-                    _ => throw new ArgumentOutOfRangeException()
-                };
-            case (State.SecondSplit, BaitType.Blue3):
-                return C.PrePlaystationSplit switch
-                {
-                    PrePlaystationSplit.Horizontal => new Vector2(-2f, 13.5f),
-                    PrePlaystationSplit.Vertical => new Vector2(0f, 14f),
-                    _ => throw new ArgumentOutOfRangeException()
-                };
-            case (State.SecondSplit, BaitType.Blue4):
-                return C.PrePlaystationSplit switch
-                {
-                    PrePlaystationSplit.Horizontal => new Vector2(-6f, 13.5f),
-                    PrePlaystationSplit.Vertical => new Vector2(0f, 16.5f),
-                    _ => throw new ArgumentOutOfRangeException()
-                };
-            case (State.PlayStationSplit, BaitType.Red1):
-                return new Vector2(2f, 9f);
-            case (State.PlayStationSplit, BaitType.Red2):
-                return new Vector2(1.4f, 7.6f);
-            case (State.PlayStationSplit, BaitType.Red3):
-                return new Vector2(-1.4f, 7.6f);
-            case (State.PlayStationSplit, BaitType.Red4):
-                return new Vector2(-2f, 9f);
-            case (State.PlayStationSplit, BaitType.Blue1):
-            case (State.PlayStationSplit, BaitType.Blue2):
-            case (State.PlayStationSplit, BaitType.Blue3):
-            case (State.PlayStationSplit, BaitType.Blue4):
-                return Vector2.Zero;
-        }
+            (State.FirstSplit, BaitType.Red1) => new Vector2(12.49f, 8.5f),
+            (State.FirstSplit, BaitType.Red2) => new Vector2(12.49f, 24.76f),
+            (State.FirstSplit, BaitType.Red3) => new Vector2(-12.49f, 24.76f),
+            (State.FirstSplit, BaitType.Red4) => new Vector2(-12.49f, 8.5f),
+            (State.FirstSplit, BaitType.Blue1) => new Vector2(20.5f, 8.5f),
+            (State.FirstSplit, BaitType.Blue2) => new Vector2(12.49f, -7.76f),
+            (State.FirstSplit, BaitType.Blue3) => new Vector2(-12.49f, -7.76f),
+            (State.FirstSplit, BaitType.Blue4) => new Vector2(-20.5f, 8.5f),
+            (State.SecondSplit, BaitType.Red1) => new Vector2(8f, 9f),
+            (State.SecondSplit, BaitType.Red2) => new Vector2(1.4f, 7.6f),
+            (State.SecondSplit, BaitType.Red3) => new Vector2(-1.4f, 7.6f),
+            (State.SecondSplit, BaitType.Red4) => new Vector2(-9f, 9f),
+            (State.SecondSplit, BaitType.Blue1) => C.PrePlaystationSplit switch
+            {
+                PrePlaystationSplit.Horizontal => new Vector2(6f, 13.5f),
+                PrePlaystationSplit.Vertical => new Vector2(0f, 9f),
+                _ => throw new ArgumentOutOfRangeException()
+            },
+            (State.SecondSplit, BaitType.Blue2) => C.PrePlaystationSplit switch
+            {
+                PrePlaystationSplit.Horizontal => new Vector2(2f, 13.5f),
+                PrePlaystationSplit.Vertical => new Vector2(0f, 11.5f),
+                _ => throw new ArgumentOutOfRangeException()
+            },
+            (State.SecondSplit, BaitType.Blue3) => C.PrePlaystationSplit switch
+            {
+                PrePlaystationSplit.Horizontal => new Vector2(-2f, 13.5f),
+                PrePlaystationSplit.Vertical => new Vector2(0f, 14f),
+                _ => throw new ArgumentOutOfRangeException()
+            },
+            (State.SecondSplit, BaitType.Blue4) => C.PrePlaystationSplit switch
+            {
+                PrePlaystationSplit.Horizontal => new Vector2(-6f, 13.5f),
+                PrePlaystationSplit.Vertical => new Vector2(0f, 16.5f),
+                _ => throw new ArgumentOutOfRangeException()
+            },
+            (State.PlayStationSplit, BaitType.Red1) => new Vector2(2f, 9f),
+            (State.PlayStationSplit, BaitType.Red2) => new Vector2(1.4f, 7.6f),
+            (State.PlayStationSplit, BaitType.Red3) => new Vector2(-1.4f, 7.6f),
+            (State.PlayStationSplit, BaitType.Red4) => new Vector2(-2f, 9f),
+            (State.PlayStationSplit, BaitType.Blue1) => Vector2.Zero,
+            (State.PlayStationSplit, BaitType.Blue2) => Vector2.Zero,
+            (State.PlayStationSplit, BaitType.Blue3) => Vector2.Zero,
+            (State.PlayStationSplit, BaitType.Blue4) => Vector2.Zero,
+            _ => default
+        };
 
-        return default;
+        if (C.OrientationBase == Direction.South)
+            position = new Vector2(position.X, -position.Y);
+
+        return position;
     }
 
     private bool DrawPriorityList()
@@ -138,6 +126,35 @@ public unsafe class P5_Death_of_the_Heavens : SplatoonScript
         ImGui.SameLine();
         ImGuiEx.Spacing();
         if (ImGui.Button("Perform test")) SelfTest();
+        ImGui.SameLine();
+        if (ImGui.Button("Fill by job"))
+        {
+            HashSet<(string, Job)> party = [];
+            foreach (var x in FakeParty.Get())
+                party.Add((x.Name.ToString(), x.GetJob()));
+
+            var proxy = InfoProxyCrossRealm.Instance();
+            for (var i = 0; i < proxy->GroupCount; i++)
+            {
+                var group = proxy->CrossRealmGroups[i];
+                for (var c = 0; c < proxy->CrossRealmGroups[i].GroupMemberCount; c++)
+                {
+                    var x = group.GroupMembers[c];
+                    party.Add((x.Name.Read(), (Job)x.ClassJobId));
+                }
+            }
+
+            var index = 0;
+            foreach (var job in C.Jobs.Where(job => party.Any(x => x.Item2 == job)))
+            {
+                C.Priority[index] = party.First(x => x.Item2 == job).Item1;
+                index++;
+            }
+
+            for (var i = index; i < C.Priority.Length; i++)
+                C.Priority[i] = "";
+        }
+        ImGuiEx.Tooltip("The list is populated based on the job.\nYou can adjust the priority from the option header.");
 
         ImGui.PushID("prio");
         for (var i = 0; i < C.Priority.Length; i++)
@@ -151,9 +168,10 @@ public unsafe class P5_Death_of_the_Heavens : SplatoonScript
             ImGui.SetNextItemWidth(150);
             if (ImGui.BeginCombo("##partysel", "Select from party"))
             {
-                foreach (var x in FakeParty.Get())
-                    if (ImGui.Selectable(x.Name.ToString()))
-                        C.Priority[i] = x.Name.ToString();
+                foreach (var x in FakeParty.Get().Select(x => x.Name.ToString())
+                             .Union(UniversalParty.Members.Select(x => x.Name)).ToHashSet())
+                    if (ImGui.Selectable(x))
+                        C.Priority[i] = x;
                 ImGui.EndCombo();
             }
 
@@ -178,6 +196,8 @@ public unsafe class P5_Death_of_the_Heavens : SplatoonScript
         DrawPriorityList();
         ImGui.Text("Pre Playstation Split");
         ImGuiEx.EnumCombo("##Pre Playstation Split", ref C.PrePlaystationSplit);
+        ImGui.Text("Orientation Base");
+        ImGuiEx.EnumRadio(ref C.OrientationBase, true);
         ImGui.Unindent();
 
         ImGui.Text("Other");
@@ -203,6 +223,28 @@ public unsafe class P5_Death_of_the_Heavens : SplatoonScript
 
         ImGui.Unindent();
 
+        if (ImGuiEx.CollapsingHeader("Option"))
+        {
+            DragDrop.Begin();
+            foreach (var job in C.Jobs)
+            {
+                DragDrop.NextRow();
+                ImGui.Text(job.ToString());
+                ImGui.SameLine();
+
+                if (ThreadLoadImageHandler.TryGetIconTextureWrap((uint)job.GetIcon(), false, out var texture))
+                {
+                    ImGui.Image(texture.ImGuiHandle, new Vector2(24f));
+                    ImGui.SameLine();
+                }
+
+                ImGui.SameLine();
+                DragDrop.DrawButtonDummy(job, C.Jobs, C.Jobs.IndexOf(job));
+            }
+
+            DragDrop.End();
+        }
+        
         if (ImGui.CollapsingHeader("Debug"))
         {
             ImGui.Checkbox("Show Debug Message", ref C.ShowDebug);
@@ -214,58 +256,43 @@ public unsafe class P5_Death_of_the_Heavens : SplatoonScript
 
     private void SelfTest()
     {
-        Svc.Chat.PrintChat(new XivChatEntry
-        {
-            Message = new SeStringBuilder()
-                .AddUiForeground("= P5 Death of the Heavens self-test =", (ushort)UIColor.LightBlue).Build()
-        });
+        Print("= P5 Death of the Heavens self-test =", UIColor.LightBlue);
         var party = FakeParty.Get().ToArray();
         var isCorrect = C.Priority.All(x => !string.IsNullOrEmpty(x));
 
         if (!isCorrect)
         {
-            Svc.Chat.PrintChat(new XivChatEntry
-            {
-                Message = new SeStringBuilder()
-                    .AddUiForeground("Priority list is not filled correctly.", (ushort)UIColor.Red).Build()
-            });
+            Print("Priority list is not filled correctly.", UIColor.Red);
             return;
         }
 
         if (party.Length != 8)
         {
             isCorrect = false;
-            Svc.Chat.PrintChat(new XivChatEntry
-            {
-                Message = new SeStringBuilder()
-                    .AddUiForeground("Can only be tested in content.", (ushort)UIColor.Red).Build()
-            });
+            Print("Can only be tested in content.", UIColor.Red);
         }
 
         foreach (var player in party)
             if (C.Priority.All(x => x != player.Name.ToString()))
             {
                 isCorrect = false;
-                Svc.Chat.PrintChat(new XivChatEntry
-                {
-                    Message = new SeStringBuilder()
-                        .AddUiForeground($"Player {player.Name} is not in the priority list.", (ushort)UIColor.Red)
-                        .Build()
-                });
+                Print($"Player {player.Name} is not in the priority list.", UIColor.Red);
             }
 
         if (isCorrect)
-            Svc.Chat.PrintChat(new XivChatEntry
-            {
-                Message = new SeStringBuilder()
-                    .AddUiForeground("Test Success!", (ushort)UIColor.Green).Build()
-            });
+            Print("Test Success!", UIColor.Green);
         else
+            Print("!!! Test failed !!!", UIColor.Red);
+        return;
+
+        void Print(string message, UIColor color)
+        {
             Svc.Chat.PrintChat(new XivChatEntry
             {
                 Message = new SeStringBuilder()
-                    .AddUiForeground("!!! Test failed !!!", (ushort)UIColor.Red).Build()
+                    .AddUiForeground(message, (ushort)color).Build()
             });
+        }
     }
 
     public override void OnStartingCast(uint source, uint castId)
@@ -459,25 +486,25 @@ public unsafe class P5_Death_of_the_Heavens : SplatoonScript
     {
         return marker switch
         {
-            PlaystationMarker.Circle => new[]
-            {
+            PlaystationMarker.Circle =>
+            [
                 Vector2.Zero
-            },
-            PlaystationMarker.Triangle => new[]
-            {
+            ],
+            PlaystationMarker.Triangle =>
+            [
                 new Vector2(1.4f, 10.4f),
                 new Vector2(-1.4f, 10.4f)
-            },
-            PlaystationMarker.Square => new[]
-            {
+            ],
+            PlaystationMarker.Square =>
+            [
                 new Vector2(1.4f, 10.4f),
                 new Vector2(-1.4f, 10.4f)
-            },
-            PlaystationMarker.Cross => new[]
-            {
+            ],
+            PlaystationMarker.Cross =>
+            [
                 new Vector2(0f, 7f),
                 new Vector2(0f, 11f)
-            },
+            ],
             _ => Array.Empty<Vector2>()
         };
     }
@@ -592,12 +619,45 @@ public unsafe class P5_Death_of_the_Heavens : SplatoonScript
         Vertical
     }
 
+    private enum Direction
+    {
+        North,
+        South
+    }
+
     private class Config : IEzConfig
     {
         public readonly Vector4 BaitColor1 = 0xFFFF00FF.ToVector4();
         public readonly Vector4 BaitColor2 = 0xFFFFFF00.ToVector4();
+
+        public readonly List<Job> Jobs =
+        [
+            Job.PLD,
+            Job.WAR,
+            Job.DRK,
+            Job.GNB,
+            Job.WHM,
+            Job.SCH,
+            Job.AST,
+            Job.SGE,
+            Job.VPR,
+            Job.DRG,
+            Job.MNK,
+            Job.SAM,
+            Job.RPR,
+            Job.NIN,
+            Job.BRD,
+            Job.MCH,
+            Job.DNC,
+            Job.BLM,
+            Job.SMN,
+            Job.RDM,
+            Job.PCT
+        ];
+
         public bool LockFace = true;
         public bool LockFaceEnableWhenNotMoving = true;
+        public Direction OrientationBase = Direction.North;
         public PrePlaystationSplit PrePlaystationSplit = PrePlaystationSplit.Horizontal;
         public string[] Priority = ["", "", "", "", "", "", "", ""];
         public bool ShouldCheckOnStart = true;
