@@ -1,22 +1,27 @@
 ﻿using ECommons.GameHelpers;
 using ECommons.PartyFunctions;
-using static System.Windows.Forms.VisualStyles.VisualStyleElement.StartPanel;
 #nullable enable
 
 namespace Splatoon.SplatoonScripting.Priority;
+/// <summary>
+/// If you need other amount of players in your priority list, create a class that inherits PriorityData and override GetNumPlayers method.
+/// </summary>
 public class PriorityData
 {
     internal string ID = GetTemporaryId();
     public string Name = "Priority list";
     public string Description = "";
-    public int NumPlayers = 8;
+    public virtual int GetNumPlayers() => 8;
     /// <summary>
     /// Do not access directly!
     /// </summary>
     public List<PriorityList> PriorityLists = [];
 
+    public PriorityData() { }
+
     public void Draw()
     {
+        ImGui.PushID(this.ID);
         if (PriorityLists.Count == 0) PriorityLists.Add(new());
         if (ImGuiEx.IconButtonWithText(FontAwesomeIcon.Plus, "Add new priority list"))
         {
@@ -27,11 +32,11 @@ public class PriorityData
         {
             var playerList = PriorityLists[i];
             playerList.DragDrop.Begin();
-            while (playerList.List.Count > NumPlayers)
+            while (playerList.List.Count > GetNumPlayers())
             {
                 playerList.List.RemoveAt(playerList.List.Count - 1);
             }
-            while (playerList.List.Count < NumPlayers)
+            while (playerList.List.Count < GetNumPlayers())
             {
                 playerList.List.Add(new());
             }
@@ -47,15 +52,24 @@ public class PriorityData
                 ImGui.TableNextColumn();
                 statusCursor = ImGui.GetCursorPos();
                 ImGuiEx.TextV($"");
+                ImGuiEx.TextV($"");
+                ImGuiEx.TextV($"");
 
                 ImGui.PushID(playerList.ID);
-                playerList.Draw();
-                ImGui.TableNextRow();
-                ImGui.TableNextColumn();
-                ImGui.TableNextColumn();
-                if (ImGuiEx.IconButtonWithText(FontAwesomeIcon.Minus, "Delete this priority list (Hold CTRL)", enabled: ImGuiEx.Ctrl))
+                try
                 {
-                    new TickScheduler(() => PriorityLists.Remove(playerList));
+                    playerList.Draw();
+                    ImGui.TableNextRow();
+                    ImGui.TableNextColumn();
+                    ImGui.TableNextColumn();
+                    if(ImGuiEx.IconButtonWithText(FontAwesomeIcon.Minus, "Delete this priority list (Hold CTRL)", enabled: ImGuiEx.Ctrl))
+                    {
+                        new TickScheduler(() => PriorityLists.Remove(playerList));
+                    }
+                }
+                catch(Exception e)
+                {
+                    e.Log();
                 }
                 ImGui.PopID();
 
@@ -65,13 +79,13 @@ public class PriorityData
                 var cur = ImGui.GetCursorPos();
                 ImGui.SetCursorPos(statusCursor);
 
-                if(NumPlayers > UniversalParty.LengthPlayback)
+                if(GetNumPlayers() > UniversalParty.LengthPlayback)
                 {
                     ImGui.PushFont(UiBuilder.IconFont);
                     ImGuiEx.TextV(EColor.OrangeBright, FontAwesomeIcon.ExclamationTriangle.ToIconString());
                     ImGui.PopFont();
                     ImGui.SameLine();
-                    ImGuiEx.Text(EColor.OrangeBright, $"Can't validate list: there are less than {NumPlayers} players in your party. ");
+                    ImGuiEx.Text(EColor.OrangeBright, $"Can't validate list: there are less than {GetNumPlayers()} players in your party. ");
                 }
                 else
                 {
@@ -95,13 +109,14 @@ public class PriorityData
                     }
                 }
 
+                playerList.DrawModeSelector();
+
                 ImGui.SetCursorPos(cur);
             }
             ImGui.PopID();
             playerList.DragDrop.End();
-            ImGui.NewLine();
-            ImGui.NewLine();
         }
+        ImGui.PopID();
     }
 
     public PriorityList? GetFirstValidList()
@@ -129,7 +144,7 @@ public class PriorityData
         {
             var index = fromEnd ? list.List.Count - 1 - i : i;
             var member = list.List[index];
-            if (member.IsInParty(out var ret) && predicate(ret))
+            if (member.IsInParty(list.IsRole, out var ret) && predicate(ret))
             {
                 if (++skip >= position)
                 {
@@ -152,7 +167,7 @@ public class PriorityData
         var ret = new List<UniversalPartyMember>();
         foreach (var x in list.List)
         {
-            if (x.IsInParty(out var upm) && predicate(upm))
+            if (x.IsInParty(list.IsRole, out var upm) && predicate(upm))
             {
                 ret.Add(upm);
             }
