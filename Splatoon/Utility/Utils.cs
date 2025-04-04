@@ -1,5 +1,7 @@
 ﻿using Dalamud.Game.ClientState.Objects.SubKinds;
 using Dalamud.Game.ClientState.Statuses;
+using Dalamud.Utility;
+using ECommons;
 using ECommons.GameFunctions;
 using ECommons.MathHelpers;
 using FFXIVClientStructs.FFXIV.Client.Graphics.Scene;
@@ -8,11 +10,20 @@ using Splatoon.RenderEngines;
 using Splatoon.Structures;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 
 namespace Splatoon.Utility;
 
 public static unsafe class Utils
 {
+    static bool IsNullOrEmpty(this string s) => GenericHelpers.IsNullOrEmpty(s);
+
+    public static bool IsLinux()
+    {
+        //return true;
+        return Util.GetHostPlatform().EqualsAny(OSPlatform.Linux, OSPlatform.OSX);
+    }
+
     public static string FancySymbols(this string n)
     {
         return n.ToString().ReplaceByChar("0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ", "");
@@ -20,7 +31,7 @@ public static unsafe class Utils
 
     public static bool WorldToScreen(Vector3 worldPos, out Vector2 screenPos)
     {
-        return S.VbmCamera.WorldToScreen(worldPos, out screenPos);
+        //return S.VbmCamera.WorldToScreen(worldPos, out screenPos);
         /*worldPos = default;
         screenPos = default;
         var cam = CameraManager.Instance();
@@ -35,6 +46,7 @@ public static unsafe class Utils
             }
         }
         return false;*/
+        return Svc.GameGui.WorldToScreen(worldPos, out screenPos);
     }
 
     public static byte[] BrotliCompress(byte[] bytes)

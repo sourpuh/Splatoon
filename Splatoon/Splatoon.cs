@@ -93,6 +93,8 @@ public unsafe class Splatoon :IDalamudPlugin
     internal PriorityPopupWindow PriorityPopupWindow;
     internal ScriptUpdateWindow ScriptUpdateWindow;
     internal TaskManager TaskManager;
+    internal bool ForceLoadDX11 = false;
+    internal LinuxWarningPopup LinuxWarningPopup;
 
     internal void Load(IDalamudPluginInterface pluginInterface)
     {
@@ -207,6 +209,8 @@ public unsafe class Splatoon :IDalamudPlugin
         EzConfigGui.WindowSystem.AddWindow(PriorityPopupWindow);
         ScriptUpdateWindow = new();
         EzConfigGui.WindowSystem.AddWindow(ScriptUpdateWindow);
+        LinuxWarningPopup = new();
+        EzConfigGui.WindowSystem.AddWindow(LinuxWarningPopup);
         TaskManager = new(new(showDebug:true));
         ScriptingProcessor.TerritoryChanged();
         ScriptingProcessor.ReloadAll();
@@ -422,7 +426,7 @@ public unsafe class Splatoon :IDalamudPlugin
                 foreach(var t in Svc.Objects)
                 {
                     var ischar = t is ICharacter;
-                    var obj = (t.Name.ToString(), t.EntityId, (ulong)t.Struct()->GetGameObjectId(), t.DataId, ischar ? ((ICharacter)t).Struct()->ModelCharaId : 0, t.Struct()->GetNameId(), ischar ? ((ICharacter)t).NameId : 0, t.ObjectKind);
+                    var obj = (t.Name.ToString(), t.EntityId, (ulong)t.Struct()->GetGameObjectId(), t.DataId, ischar ?  ((ICharacter)t).Struct()->ModelContainer.ModelCharaId : 0, t.Struct()->GetNameId(), ischar ? ((ICharacter)t).NameId : 0, t.ObjectKind);
                     loggedObjectList.TryAdd(obj, new ObjectInfo());
                     loggedObjectList[obj].ExistenceTicks++;
                     loggedObjectList[obj].IsChar = ischar;
@@ -705,7 +709,7 @@ public unsafe class Splatoon :IDalamudPlugin
     {
         if(tochat)
         {
-            Svc.Chat.Print(s, messageTag: "Splatoon", tagColor: chatColor);
+            Svc.Chat.Print(s.Split("\n")[0], messageTag: "Splatoon", tagColor: chatColor);
         }
         InternalLog.Information(s);
     }
